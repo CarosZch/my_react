@@ -28,4 +28,35 @@ let element = React.createElement(
   )
 );
 
+/**
+ * 自定义组件
+ */
+class customComponents extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      num: 1
+    };
+  }
+  componentWillMount() {
+    console.log('组件将要挂载');
+  }
+  componentDidMount() {
+    console.log('组件已经挂载');
+  }
+  handelClick = () => {
+    this.setState({
+      num: this.state.num++
+    });
+  }
+  render() {
+    const p = React.createElement('p', {}, this.state.num);
+    const btn = React.createElement('button', {
+      onClick: this.handelClick
+    }, '+');
+    return React.createElement('div', {}, p, btn);
+  }
+}
+element = React.createElement(customComponents, {name: '自定义组件'})
+
 React.render(element, document.getElementById('root'));

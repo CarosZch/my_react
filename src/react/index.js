@@ -1,13 +1,15 @@
 import createReactUnit from './createReactUnit'
 import createElement from './createElement'
-
+import Component from './Component'
 const React = {
   // 下一个根结点索引
-  nextRootIndex: 0,
+  nextRootIndex: '0',
   // 创建虚拟组件
   createElement,
   // 渲染函数
-  render
+  render,
+  // 自定义组件
+  Component
 }
 
 /**

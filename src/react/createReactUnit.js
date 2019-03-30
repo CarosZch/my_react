@@ -13,7 +13,7 @@ class ReactTextUnit extends Unit {
   // 创建实例
   getMarkup(rootId) {
     this._rootId = rootId
-    return `<span data-react-id="${ this._rootId }">${ this._currentElement }</span>`
+    return `<span data-rid="${ this._rootId }">${ this._currentElement }</span>`
   }
 }
 
@@ -28,40 +28,38 @@ class ReactNativeUnit extends Unit {
 
 /**
  * 创建element 返回element.outerHTML
- * @param {Object} { type, prop } createElement对象
+ * @param {Object} { type, props } createElement对象
  * @param {*} rootId 
- * @param {Number} i 
  */
-function recursionCreate({ type, prop }, rootId, i) {
-  i = 0
+function recursionCreate({ type, props }, rootId) {
   // 创建DOM
   const DOM = document.createElement(type)
   // 给予ID
-  DOM.setAttribute('data-react-id', rootId)
-  for (const key in prop) {
-    // children不是属性
-    if (key === 'children') continue;
-    if (/^on[A-Z]/.test(key)) {
+  DOM.setAttribute('data-rid', rootId)
+  for (const key in props) {
+    if (key === 'children') {
+      // 为子单元
+      let children = props.children || []
+      children.forEach((e, i) => {
+        if (typeof e === 'string' || typeof e === 'number') {
+          // 为非单元
+          DOM.innerHTML += createReactUnit(e).getMarkup(rootId + '.' + i)
+        } else {
+          // 为单元，递归插入
+          DOM.innerHTML += recursionCreate(e, rootId + '.' + i)
+        }
+      })
+    } else if (/^on[A-Z]/.test(key)) {
       // 为事件, 做事件委托
-      delegate(rootId, key, prop[key])
-    } else if (typeof prop[key] === 'string') {
-      // 为属性
-      DOM.setAttribute(key, prop[key])
+      delegate(rootId, key, props[key])
+    } else if (typeof props[key] === 'string') {
+      // 为属性，添加
+      DOM.setAttribute(key, props[key])
     } else {
-      // 为样式style
-      DOM.setAttribute(key, objToStyle(prop[key]))
+      // 为样式style，修改后添加（react不允许style传字符串）
+      DOM.setAttribute(key, objToStyle(props[key]))
     }
   }
-  // 递归插入子单元
-  prop.children && prop.children[0] && prop.children.forEach(e => {
-    if (typeof e === 'string') {
-      // console.log(createReactUnit(e).getMarkup(rootId + '.' + i))
-      DOM.innerHTML += createReactUnit(e).getMarkup(rootId + '.' + i)
-    } else {
-      DOM.innerHTML += recursionCreate(e, rootId + '.' + i, i)
-    }
-    i++
-  })
   // 返回单元的字符串
   return DOM.outerHTML
 }
@@ -86,7 +84,7 @@ function objToStyle(obj, str='') {
 }
 
 /**
- * 事件代理
+ * 事件委托
  * @param { String } dataReactId react的id属性
  * @param { String } event 事件名称 如onClick
  * @param { Function } fn 事件回调函数
@@ -94,12 +92,30 @@ function objToStyle(obj, str='') {
 function delegate(dataReactId, event, fn) {
   // onClick => addEventListener('click', fn())
   document.addEventListener(event.replace(/^on/, '').toLowerCase(), function(event) {
-    // 当点击对象的data-react-id是所选对象的子单元，执行fn
-    console.log(1)
-    const tar = event.target.getAttribute('data-react-id')
+    // 当点击对象的data-rid是所选对象的子单元，执行fn
+    const tar = event.target.getAttribute('data-rid')
     // 忽略html、body等不相干标签
     tar && tar.indexOf(dataReactId) === 0 && fn()
   })
+}
+
+class ReactCompositeUnit extends Unit {
+  getMarkup(rootId) {
+    this._rootId = rootId;
+    let { type:Component, props } = this._currentElement;
+    // 创建组件的实例
+    let componentInstance = this._componentInstance = new Component(props);
+    // 生命周期
+    componentInstance.componentWillMount && componentInstance.componentWillMount();
+    // 得到返回的虚拟DOM（React）
+    let rennderedElement = componentInstance.render();
+    // 渲染出单元实例
+    let rennderedUnitInstance = createReactUnit(rennderedElement)
+    document.addEventListener('mounted', function() {
+      console.log(1)
+    })
+    return rennderedUnitInstance.getMarkup(rootId)
+  }
 }
 
 /**
@@ -116,6 +132,10 @@ function createReactUnit (element) {
   if (typeof element === 'object' && typeof element.type === 'string') {
     return new ReactNativeUnit(element);
   };
+  // 自定义组件
+  if (typeof element === 'object' && typeof element.type === 'function') {
+    return new ReactCompositeUnit(element);
+  }
 }
 
 export default createReactUnit
