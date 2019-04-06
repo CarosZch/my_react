@@ -111,8 +111,8 @@ class ReactCompositeUnit extends Unit {
     let rennderedElement = componentInstance.render();
     // 渲染出单元实例
     let rennderedUnitInstance = createReactUnit(rennderedElement)
-    document.addEventListener('mounted', function() {
-      console.log(1)
+    process.nextTick(() => {
+      componentInstance.componentDidMount && componentInstance.componentDidMount();
     })
     return rennderedUnitInstance.getMarkup(rootId)
   }
